@@ -13,10 +13,9 @@ contract DexPriceSyncer is Ownable {
 
     function sync(
         IUniswapV2Router _uniswapV2Router,
+        IPriceReader _priceReader,
         IERC20Metadata _tokenA,
         IERC20Metadata _tokenB,
-        IPriceReader _priceReaderA,
-        IPriceReader _priceReaderB,
         string memory _symbolA,
         string memory _symbolB,
         uint256 _maxAddedA,
@@ -27,18 +26,25 @@ contract DexPriceSyncer is Ownable {
         external
         onlyOwner
     {
-        addLiquidityToSyncDexPrice(
-            _uniswapV2Router, _tokenA, _tokenB, _priceReaderA, _priceReaderB, _symbolA, _symbolB, _maxAddedA, _maxAddedB);
-        swapToSyncDexPrice(
-            _uniswapV2Router, _tokenA, _tokenB, _priceReaderA, _priceReaderB, _symbolA, _symbolB, _maxSwapA, _maxSwapB);
+        { // scope to avoid stack too deep error
+            (uint256 reserveA,) = InfoTool.safelyGetDexReserves(
+                _uniswapV2Router, address(_tokenA), address(_tokenB));
+            if (reserveA == 0) {
+                addLiquidityToSyncDexPrice(
+                    _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxAddedA, _maxAddedB);
+            }
+        }
+        {
+            swapToSyncDexPrice(
+                _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxSwapA, _maxSwapB);
+        }
     }
 
     function addLiquidityToSyncDexPrice(
         IUniswapV2Router _uniswapV2Router,
+        IPriceReader _priceReader,
         IERC20Metadata _tokenA,
         IERC20Metadata _tokenB,
-        IPriceReader _priceReaderA,
-        IPriceReader _priceReaderB,
         string memory _symbolA,
         string memory _symbolB,
         uint256 _maxAddedA,
@@ -47,7 +53,7 @@ contract DexPriceSyncer is Ownable {
         public
         onlyOwner
     {
-        (uint256 priceA, uint256 priceB) = InfoTool.normalizedPrices(_priceReaderA, _priceReaderB, _symbolA, _symbolB);
+        (uint256 priceA, uint256 priceB) = InfoTool.conormalizedPrices(_priceReader, _symbolA, _symbolB);
         (uint256 addedA, uint256 addedB) = InfoTool.liquidityToAddForDexPriceSync(
             _uniswapV2Router, _tokenA, _tokenB, priceA, priceB, _maxAddedA, _maxAddedB);
         _addLiquidity(_uniswapV2Router, address(_tokenA), address(_tokenB), addedA, addedB);
@@ -56,10 +62,9 @@ contract DexPriceSyncer is Ownable {
 
     function swapToSyncDexPrice(
         IUniswapV2Router _uniswapV2Router,
+        IPriceReader _priceReader,
         IERC20Metadata _tokenA,
         IERC20Metadata _tokenB,
-        IPriceReader _priceReaderA,
-        IPriceReader _priceReaderB,
         string memory _symbolA,
         string memory _symbolB,
         uint256 _maxSwapA,
@@ -68,7 +73,7 @@ contract DexPriceSyncer is Ownable {
         public
         onlyOwner
     {
-        (uint256 priceA, uint256 priceB) = InfoTool.normalizedPrices(_priceReaderA, _priceReaderB, _symbolA, _symbolB);
+        (uint256 priceA, uint256 priceB) = InfoTool.conormalizedPrices(_priceReader, _symbolA, _symbolB);
         (uint256 swapA, uint256 swapB) = InfoTool.tokensToSwapForDexPriceSync(
             _uniswapV2Router, _tokenA, _tokenB, priceA, priceB, _maxSwapA, _maxSwapB);
         _swap(_uniswapV2Router, IERC20(_tokenA), IERC20(_tokenB), swapA, swapB);

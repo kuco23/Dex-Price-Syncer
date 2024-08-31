@@ -6,11 +6,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IUniswapV2Pair} from "./IUniswapV2Pair.sol";
 import {Babylonian} from "../../lib/Babylonian.sol";
 
 
-contract UniswapV2PairMock is IUniswapV2Pair, ERC20, ReentrancyGuard {
+contract UniswapV2PairMock is ERC20, ReentrancyGuard {
     uint256 public constant MINIMUM_LIQUIDITY = 10 ** 3;
 
     address public immutable token0;

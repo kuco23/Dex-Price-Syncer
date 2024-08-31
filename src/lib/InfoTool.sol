@@ -48,18 +48,17 @@ library InfoTool {
             reserveA, reserveB, _priceA, _priceB, decimalsA, decimalsB, _maxAddedA, _maxAddedB);
     }
 
-    function normalizedPrices(
-        IPriceReader _priceReaderA,
-        IPriceReader _priceReaderB,
+    function conormalizedPrices(
+        IPriceReader _priceReader,
         string memory _symbolA,
         string memory _symbolB
     )
         internal view
         returns (uint256 _priceA, uint256 _priceB)
     {
-        (uint256 priceA,, uint256 priceDecimalsA) = _priceReaderA.getPrice(_symbolA);
-        (uint256 priceB,, uint256 priceDecimalsB) = _priceReaderB.getPrice(_symbolB);
-        return PriceCalc.normalizePrices(priceA, priceB, uint8(priceDecimalsA), uint8(priceDecimalsB));
+        (uint256 priceA,, uint256 priceDecimalsA) = _priceReader.getPrice(_symbolA);
+        (uint256 priceB,, uint256 priceDecimalsB) = _priceReader.getPrice(_symbolB);
+        return PriceCalc.conormalizePrices(priceA, priceB, uint8(priceDecimalsA), uint8(priceDecimalsB));
     }
 
     function safelyGetDexReserves(

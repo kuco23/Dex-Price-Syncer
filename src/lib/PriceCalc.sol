@@ -126,9 +126,9 @@ library PriceCalc {
     }
 
     /**
-     * Numerical price of tokenA in tokenB shifted by `PRICE_PRECISION_DECIMALS` decimals
-     * @param _priceA - price of tokenA (e.g. BTC) in any currency x (e.g. USD)
-     * @param _priceB - price of tokenB (e.g. XRP) in any currency x (e.g. USD)
+     * Numerical price of asset A in asset B shifted by `PRICE_PRECISION_DECIMALS` decimals
+     * @param _priceA - price of asset A (e.g. Satoshi) in any currency x (e.g. USD)
+     * @param _priceB - price of asset B (e.g. XRP) in any currency x (e.g. USD)
      */
     function relativePrice(
         uint256 _priceA, uint256 _priceB
@@ -146,7 +146,7 @@ library PriceCalc {
      * @param _priceDecimalsA - decimals of priceA
      * @param _priceDecimalsB - decimals of priceB
      */
-    function normalizePrices(
+    function conormalizePrices(
         uint256 _priceA, uint256 _priceB,
         uint8 _priceDecimalsA, uint8 _priceDecimalsB
     )

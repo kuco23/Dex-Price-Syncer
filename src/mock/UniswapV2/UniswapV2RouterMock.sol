@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IUniswapV2Router} from "../../interface/IUniswapV2Router.sol";
-import {IUniswapV2Pair} from "./IUniswapV2Pair.sol";
 import {UniswapV2PairMock} from "./UniswapV2PairMock.sol";
 
 
@@ -52,7 +51,7 @@ contract UniswapV2RouterMock is IUniswapV2Router {
         address pair = pairFor(tokenA, tokenB);
         SafeERC20.safeTransferFrom(IERC20(tokenA), msg.sender, pair, amountA);
         SafeERC20.safeTransferFrom(IERC20(tokenB), msg.sender, pair, amountB);
-        liquidity = IUniswapV2Pair(pair).mint(to);
+        liquidity = UniswapV2PairMock(pair).mint(to);
     }
 
     function removeLiquidity(
@@ -103,7 +102,7 @@ contract UniswapV2RouterMock is IUniswapV2Router {
         public view
         returns (uint256, uint256)
     {
-        IUniswapV2Pair pair = IUniswapV2Pair(pairFor(tokenA, tokenB));
+        UniswapV2PairMock pair = UniswapV2PairMock(pairFor(tokenA, tokenB));
         (uint256 reserve0, uint256 reserve1, ) = pair.getReserves();
         if (_isOrdered(tokenA, tokenB)) {
             return (reserve0, reserve1);
@@ -172,7 +171,7 @@ contract UniswapV2RouterMock is IUniswapV2Router {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
             (address token0, ) = _sortTokens(input, output);
-            IUniswapV2Pair pair = IUniswapV2Pair(pairFor(input, output));
+            UniswapV2PairMock pair = UniswapV2PairMock(pairFor(input, output));
             uint256 amountInput;
             uint256 amountOutput;
             {

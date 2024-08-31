@@ -22,20 +22,36 @@ contract DexPriceSyncerTest is Test {
     }
 
     function test_AddLiquidityToSyncDexPrice() public {
-        ERC20Mock tokenA = new ERC20Mock("TokenA", "TKA", 18);
-        ERC20Mock tokenB = new ERC20Mock("TokenB", "TKB", 6);
-        tokenA.mint(address(dexPriceSyncer), 1e25);
-        tokenB.mint(address(dexPriceSyncer), 1e15);
-        PriceReaderMock priceReader = PriceReaderMock(address(this));
-        priceReader.setDecimals("TKA", 5);
-        priceReader.setDecimals("TKB", 3);
-        priceReader.setPrice("TKA", 1e7);
-        priceReader.setPrice("TKB", 1e5);
+        // params
+        uint8 decimalsA = 17;
+        uint8 decimalsB = 6;
+        uint8 priceDecimalsA = 5;
+        uint8 priceDecimalsB = 3;
+        uint256 priceA = 1e7;
+        uint256 priceB = 1e5;
+        // calc
+        uint256 initialSupplyA = 100_000 * 10 ** decimalsA;
+        uint256 initialSupplyB = 100_000 * 10 ** decimalsB;
+        // test
+        ERC20Mock tokenA = new ERC20Mock("TokenA", "TKA", decimalsA);
+        ERC20Mock tokenB = new ERC20Mock("TokenB", "TKB", decimalsB);
+        tokenA.mint(address(dexPriceSyncer), initialSupplyA);
+        tokenB.mint(address(dexPriceSyncer), initialSupplyB);
+        PriceReaderMock priceReader = new PriceReaderMock(address(this));
+        priceReader.setDecimals("TKA_symbol", priceDecimalsA);
+        priceReader.setDecimals("TKB_symbol", priceDecimalsB);
+        priceReader.setPrice("TKA_symbol", priceA);
+        priceReader.setPrice("TKB_symbol", priceB);
         dexPriceSyncer.addLiquidityToSyncDexPrice(
-            uniswapV2Router, tokenA, tokenB, priceReader, priceReader, "TKA", "TKB", 1e17, 1e10);
+            uniswapV2Router, priceReader,
+            tokenA, tokenB,
+            "TKA_symbol", "TKB_symbol",
+            initialSupplyA, initialSupplyB
+        );
         // check
         (uint256 reserveA, uint256 reserveB) = uniswapV2Router.getReserves(address(tokenA), address(tokenB));
-        uint256 _price = PriceCalc.relativeTokenDexPrice(reserveA, reserveB, 18, 6);
-        console.log("reserveA: %d, reserveB: %d, price: %d", reserveA, reserveB, _price);
+        uint256 _price = PriceCalc.relativeTokenDexPrice(reserveA, reserveB, decimalsA, decimalsB);
+        (uint256 _normalPriceA, uint256 _normalPriceB) = PriceCalc.conormalizePrices(priceA, priceB, priceDecimalsA, priceDecimalsB);
+        assertEq(_price, PriceCalc.relativePrice(_normalPriceA, _normalPriceB));
     }
 }
