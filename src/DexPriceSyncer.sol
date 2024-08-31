@@ -7,6 +7,7 @@ import {IUniswapV2Router} from "./interface/IUniswapV2Router.sol";
 import {IPriceReader} from "./interface/IPriceReader.sol";
 import {InfoTool} from "./lib/InfoTool.sol";
 
+
 contract DexPriceSyncer is Ownable {
 
     constructor() Ownable(msg.sender) {}
@@ -34,7 +35,7 @@ contract DexPriceSyncer is Ownable {
                     _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxAddedA, _maxAddedB);
             }
         }
-        {
+        { // scope to avoid stack too deep error
             swapToSyncDexPrice(
                 _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxSwapA, _maxSwapB);
         }
@@ -56,8 +57,7 @@ contract DexPriceSyncer is Ownable {
         (uint256 priceA, uint256 priceB) = InfoTool.conormalizedPrices(_priceReader, _symbolA, _symbolB);
         (uint256 addedA, uint256 addedB) = InfoTool.liquidityToAddForDexPriceSync(
             _uniswapV2Router, _tokenA, _tokenB, priceA, priceB, _maxAddedA, _maxAddedB);
-        _addLiquidity(_uniswapV2Router, address(_tokenA), address(_tokenB), addedA, addedB);
-
+        _addLiquidity(_uniswapV2Router, IERC20(_tokenA), IERC20(_tokenB), addedA, addedB);
     }
 
     function swapToSyncDexPrice(
@@ -77,7 +77,6 @@ contract DexPriceSyncer is Ownable {
         (uint256 swapA, uint256 swapB) = InfoTool.tokensToSwapForDexPriceSync(
             _uniswapV2Router, _tokenA, _tokenB, priceA, priceB, _maxSwapA, _maxSwapB);
         _swap(_uniswapV2Router, IERC20(_tokenA), IERC20(_tokenB), swapA, swapB);
-
     }
 
     function withdrawToken(
@@ -104,23 +103,25 @@ contract DexPriceSyncer is Ownable {
 
     function _addLiquidity(
         IUniswapV2Router _uniswapV2Router,
-        address _tokenA, address _tokenB,
+        IERC20 _tokenA, IERC20 _tokenB,
         uint256 _addedA, uint256 _addedB
     )
         private
     {
         if (_addedA > 0 && _addedB > 0) {
-            IERC20(_tokenA).approve(address(_uniswapV2Router), _addedA);
-            IERC20(_tokenB).approve(address(_uniswapV2Router), _addedB);
+            _tokenA.approve(address(_uniswapV2Router), _addedA);
+            _tokenB.approve(address(_uniswapV2Router), _addedB);
             _uniswapV2Router.addLiquidity(
-                _tokenA, _tokenB,
-                _addedA, _addedB,
+                address(_tokenA),
+                address(_tokenB),
+                _addedA,
+                _addedB,
                 0, 0, 0, 0,
                 address(this),
                 block.timestamp
             );
-            IERC20(_tokenA).approve(address(_uniswapV2Router), 0);
-            IERC20(_tokenB).approve(address(_uniswapV2Router), 0);
+            _tokenA.approve(address(_uniswapV2Router), 0);
+            _tokenB.approve(address(_uniswapV2Router), 0);
         }
     }
 
