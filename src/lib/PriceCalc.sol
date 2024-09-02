@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {Math} from "./Math.sol";
 import {Babylonian} from "./Babylonian.sol";
-import {console} from "forge-std/Script.sol";
 
 
 library PriceCalc {
@@ -14,30 +14,6 @@ library PriceCalc {
     uint256 constant DEX_FEE_BIPS = 3;
     uint256 constant DEX_MAX_BIPS = 1000;
     uint256 constant DEX_FACTOR_BIPS = DEX_MAX_BIPS - DEX_FEE_BIPS;
-
-    /**
-     * The amount of tokenA to swap to achieve the desired price
-     * @param _initialReserveA - initial dex reserve of tokenA
-     * @param _initialReserveB - initial dex reserve of tokenB
-     * @param _priceA - price of tokenA in any currency x
-     * @param _priceB - price of tokenB in any currency x
-     * @param _decimalsA - decimals of tokenA
-     * @param _decimalsB - decimals of tokenB
-     */
-    function swapToDexPrice(
-        uint256 _initialReserveA,
-        uint256 _initialReserveB,
-        uint256 _priceA,
-        uint256 _priceB,
-        uint8 _decimalsA,
-        uint8 _decimalsB
-    )
-        internal pure
-        returns (uint256 _swapA, uint256 _swapB)
-    {
-        (uint256 priceABMul, uint256 priceABDiv) = relativeUnitPriceMulDiv(_priceA, _priceB, _decimalsA, _decimalsB);
-        return _swapToDexPrice(_initialReserveA, _initialReserveB, priceABMul, priceABDiv);
-    }
 
     /**
      * The amount of tokenA and tokenB to add to the dex to achieve the desired price
@@ -67,6 +43,30 @@ library PriceCalc {
     {
         (uint256 ratioB, uint256 ratioA) = relativeUnitPriceMulDiv(_priceA, _priceB, _decimalsA, _decimalsB);
         return _ratioBasedAddedDexReserves(_initialReserveA, _initialReserveB, ratioA, ratioB, _maxAddedA, _maxAddedB);
+    }
+
+    /**
+     * The amount of tokenA to swap to achieve the desired price
+     * @param _initialReserveA - initial dex reserve of tokenA
+     * @param _initialReserveB - initial dex reserve of tokenB
+     * @param _priceA - price of tokenA in any currency x
+     * @param _priceB - price of tokenB in any currency x
+     * @param _decimalsA - decimals of tokenA
+     * @param _decimalsB - decimals of tokenB
+     */
+    function swapToDexPrice(
+        uint256 _initialReserveA,
+        uint256 _initialReserveB,
+        uint256 _priceA,
+        uint256 _priceB,
+        uint8 _decimalsA,
+        uint8 _decimalsB
+    )
+        internal pure
+        returns (uint256 _swapA, uint256 _swapB)
+    {
+        (uint256 ratioB, uint256 ratioA) = relativeUnitPriceMulDiv(_priceA, _priceB, _decimalsA, _decimalsB);
+        return _swapToDexPrice(_initialReserveA, _initialReserveB, ratioA, ratioB);
     }
 
     /**
@@ -182,10 +182,7 @@ library PriceCalc {
     {
         uint256 dexTokenPrice = PriceCalc.relativeTokenDexPrice(_reserveA, _reserveB, _decimalsA, _decimalsB);
         uint256 expectedTokenPrice = PriceCalc.relativePrice(_tokenPriceA, _tokenPriceB);
-        console.log(dexTokenPrice);
-        console.log(expectedTokenPrice);
-        console.log("-----");
-        return relDiff(dexTokenPrice, expectedTokenPrice);
+        return Math.relDiff(dexTokenPrice, expectedTokenPrice, PRICE_PRECISION);
     }
 
     function _ratioBasedAddedDexReserves(
@@ -214,14 +211,14 @@ library PriceCalc {
     function _swapToDexPrice(
         uint256 _initialReserveA,
         uint256 _initialReserveB,
-        uint256 _priceABMul,
-        uint256 _priceABDiv
+        uint256 _ratioA,
+        uint256 _ratioB
     )
         private pure
-        returns (uint256 _swapA, uint256 _swapB)
+        returns (uint256, uint256)
     {
-        (uint256 swapA, bool okA) = _swapToDexRatio(_initialReserveA, _initialReserveB, _priceABDiv, _priceABMul);
-        (uint256 swapB,) = okA ? _swapToDexRatio(_initialReserveB, _initialReserveA, _priceABMul, _priceABDiv) : (0, true);
+        (uint256 swapA, bool neg) = _swapToDexRatio(_initialReserveA, _initialReserveB, _ratioA, _ratioB);
+        (uint256 swapB,) = neg ? _swapToDexRatio(_initialReserveB, _initialReserveA, _ratioB, _ratioA) : (0, true);
         return (swapA, swapB);
     }
 
@@ -235,24 +232,11 @@ library PriceCalc {
         returns (uint256 _swapA, bool _negative)
     {
         uint256 aux1 = 4 * _initialReserveB * _desiredRatioA * DEX_FACTOR_BIPS / DEX_MAX_BIPS;
-        uint256 aux2 = _initialReserveA * _desiredRatioB * (DEX_MAX_BIPS - DEX_FACTOR_BIPS) ** 2 / DEX_MAX_BIPS ** 2;
-        uint256 aux3 = Babylonian.sqrt(_initialReserveA * (aux1 + aux2) / _desiredRatioB);
+        uint256 aux2 = _initialReserveA * _desiredRatioB * DEX_FEE_BIPS ** 2 / DEX_MAX_BIPS ** 2;
+        uint256 aux3 = Babylonian.sqrt((aux1 + aux2) / _desiredRatioB * _initialReserveA); // watch out for overflow
         uint256 aux4 = _initialReserveA * (DEX_FACTOR_BIPS + DEX_MAX_BIPS) / DEX_MAX_BIPS;
         if (aux3 < aux4) return (0, true);
-        return ((aux3 - aux4) * DEX_MAX_BIPS / 2 * DEX_FACTOR_BIPS, false);
-    }
-
-    function relDiff(uint256 x, uint256 y) private pure returns (uint256) {
-        uint256 _max = max(x, y);
-        return _max == 0 ? 0 : PRICE_PRECISION * diff(x, y) / _max;
-    }
-
-    function diff(uint256 x, uint256 y) private pure returns (uint256) {
-        return x > y ? x - y : y - x;
-    }
-
-    function max(uint256 x, uint256 y) private pure returns (uint256) {
-        return x > y ? x : y;
+        return ((aux3 - aux4) * DEX_MAX_BIPS / 2 / DEX_FACTOR_BIPS, false);
     }
 
 }

@@ -6,8 +6,6 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IUniswapV2Router} from "./interface/IUniswapV2Router.sol";
 import {IPriceReader} from "./interface/IPriceReader.sol";
 import {InfoTool} from "./lib/InfoTool.sol";
-import {console} from "forge-std/Script.sol";
-
 
 
 contract DexPriceSyncer is Ownable {
@@ -25,8 +23,8 @@ contract DexPriceSyncer is Ownable {
         external view
         returns (uint256)
     {
-        return InfoTool.dexRelativeTokenPriceDiff(
-            _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB);
+        (uint256 priceA, uint256 priceB) = InfoTool.conormalizedPrices(_priceReader, _symbolA, _symbolB);
+        return InfoTool.dexRelativeTokenPriceDiff(_uniswapV2Router, _tokenA, _tokenB, priceA, priceB);
     }
 
     function sync(

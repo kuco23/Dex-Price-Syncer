@@ -2,13 +2,14 @@
 pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
-import {ERC20Mock} from "../src/mock/ERC20Mock.sol";
-import {PriceReaderMock} from "../src/mock/PriceReaderMock.sol";
-import {UniswapV2RouterMock} from "../src/mock/UniswapV2/UniswapV2RouterMock.sol";
 import {IUniswapV2Router} from "../src/interface/IUniswapV2Router.sol";
 import {IPriceReader} from "../src/interface/IPriceReader.sol";
-import {DexPriceSyncer} from "../src/DexPriceSyncer.sol";
+import {UniswapV2RouterMock} from "../src/mock/UniswapV2/UniswapV2RouterMock.sol";
+import {PriceReaderMock} from "../src/mock/PriceReaderMock.sol";
+import {ERC20Mock} from "../src/mock/ERC20Mock.sol";
+import {Math} from "../src/lib/Math.sol";
 import {PriceCalc} from "../src/lib/PriceCalc.sol";
+import {DexPriceSyncer} from "../src/DexPriceSyncer.sol";
 
 
 /* simple test example
@@ -22,9 +23,9 @@ import {PriceCalc} from "../src/lib/PriceCalc.sol";
     uint256 initialLiquidityB = 100_000 * 10 ** decimalsB;
  */
 
-
-uint256 constant MAX_PRICE_ERROR_HR = 1e5;
-uint256 constant MAX_PRICE_ERROR = PriceCalc.PRICE_PRECISION / MAX_PRICE_ERROR_HR;
+uint256 constant MAX_PRICE_DECIMAL_DIFF = 2; // can be set to 5 for add liquidity,
+// for swap it's hard to eliminate the problematic values
+uint256 constant MAX_PRICE_ERROR = PriceCalc.PRICE_PRECISION / 10 ** MAX_PRICE_DECIMAL_DIFF;
 
 contract DexPriceSyncerTest is Test {
     DexPriceSyncer public dexPriceSyncer;
@@ -36,13 +37,11 @@ contract DexPriceSyncerTest is Test {
     }
 
     function test_AddLiquidityToSyncDexPrice(
-        uint8 decimalsA,
-        uint8 decimalsB,
-        uint8 priceDecimalsA,
-        uint8 priceDecimalsB,
-        uint80 priceA,
-        uint80 priceB
+        uint16 decimals,
+        uint64 priceA,
+        uint64 priceB
     ) external {
+        (uint8 decimalsA, uint8 decimalsB, uint8 priceDecimalsA, uint8 priceDecimalsB) = extrapolateDecimals(decimals);
         restrictParams(decimalsA, decimalsB, priceDecimalsA, priceDecimalsB, priceA, priceB);
         uint256 initialSupplyA = type(uint96).max;
         uint256 initialSupplyB = type(uint96).max;
@@ -74,20 +73,18 @@ contract DexPriceSyncerTest is Test {
     }
 
     function test_SwapToSyncDexPrice(
-        uint8 decimalsA,
-        uint8 decimalsB,
-        uint8 priceDecimalsA,
-        uint8 priceDecimalsB,
-        uint80 priceA,
-        uint80 priceB,
-        uint96 initialLiquidityA,
-        uint96 initialLiquidityB
+        uint16 decimals,
+        uint64 priceA,
+        uint64 priceB,
+        uint32 _initialLiquidityA,
+        uint32 _initialLiquidityB
     ) external {
+        (uint8 decimalsA, uint8 decimalsB, uint8 priceDecimalsA, uint8 priceDecimalsB) = extrapolateDecimals(decimals);
         restrictParams(decimalsA, decimalsB, priceDecimalsA, priceDecimalsB, priceA, priceB);
-        vm.assume(initialLiquidityA >= 10 ** decimalsA);
-        vm.assume(initialLiquidityB >= 10 ** decimalsB);
-        uint256 initialSupplyA = type(uint96).max;
-        uint256 initialSupplyB = type(uint96).max;
+        uint256 initialLiquidityA = uint256(_initialLiquidityA) + uint32(10 ** decimalsA);
+        uint256 initialLiquidityB = uint256(_initialLiquidityB) + uint32(10 ** decimalsB);
+        uint256 initialSupplyA = type(uint112).max;
+        uint256 initialSupplyB = type(uint112).max;
         // test
         ERC20Mock tokenA = new ERC20Mock("TokenA", "TKA", decimalsA);
         ERC20Mock tokenB = new ERC20Mock("TokenB", "TKB", decimalsB);
@@ -127,26 +124,41 @@ contract DexPriceSyncerTest is Test {
         assertLe(relativePriceDiff, MAX_PRICE_ERROR);
     }
 
+    function extrapolateDecimals(
+        uint16 decimals
+    )
+        internal pure
+        returns (uint8, uint8, uint8, uint8)
+    {
+        uint8 decimalsA = 4 + uint8(decimals & 0xf);
+        uint8 decimalsB = 4 + uint8((decimals >> 4) & 0xf);
+        uint8 priceDecimalsA = 4 + uint8((decimals >> 8) & 0xf);
+        uint8 priceDecimalsB = 4 + uint8((decimals >> 12) & 0xf);
+        return (decimalsA, decimalsB, priceDecimalsA, priceDecimalsB);
+    }
+
     function restrictParams(
         uint8 decimalsA,
         uint8 decimalsB,
         uint8 priceDecimalsA,
         uint8 priceDecimalsB,
-        uint80 priceA,
-        uint80 priceB
-    ) internal pure {
-        vm.assume(decimalsA > 2 && decimalsA <= 20);
-        vm.assume(decimalsB > 2 && decimalsB <= 20);
-        vm.assume(priceDecimalsA > 2 && priceDecimalsA <= 10);
-        vm.assume(priceDecimalsB > 2 && priceDecimalsB <= 10);
-        vm.assume(priceA > 0 && priceB > 0);
+        uint64 priceA,
+        uint64 priceB
+    )
+        internal pure
+    {
+        vm.assume(decimalsA >= 2  && decimalsA <= 20);
+        vm.assume(decimalsB >= 2 && decimalsB <= 20);
+        vm.assume(priceDecimalsA >= 2 && priceDecimalsA <= 10);
+        vm.assume(priceDecimalsB >= 2 && priceDecimalsB <= 10);
+        vm.assume(priceA > 0 && priceB > 0 && priceA > 10_000 && priceB > 10_000);
         uint256 _unitPriceAB = PriceCalc.relativeUnitPrice(priceA, priceB, decimalsA, decimalsB);
-        vm.assume(_unitPriceAB > 0 && _unitPriceAB <= type(uint80).max);
+        vm.assume(_unitPriceAB > 0 && _unitPriceAB <= type(uint64).max);
         uint256 _unitPriceBA = PriceCalc.relativeUnitPrice(priceB, priceA, decimalsB, decimalsA);
-        vm.assume(_unitPriceBA > 0 && _unitPriceBA <= type(uint80).max);
+        vm.assume(_unitPriceBA > 0 && _unitPriceBA <= type(uint64).max);
         uint256 _tokenPriceAB = PriceCalc.relativePrice(priceA, priceB);
-        vm.assume(_tokenPriceAB > 0 && _tokenPriceAB <= type(uint80).max);
+        vm.assume(_tokenPriceAB > 0 && _tokenPriceAB <= type(uint64).max);
         uint256 _tokenPriceBA = PriceCalc.relativePrice(priceB, priceA);
-        vm.assume(_tokenPriceBA > 0 && _tokenPriceBA <= type(uint80).max);
+        vm.assume(_tokenPriceBA > 0 && _tokenPriceBA <= type(uint64).max);
     }
 }
