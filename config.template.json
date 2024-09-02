@@ -1,0 +1,16 @@
+[
+    {
+      "tokenA": {
+        "symbol": "",
+        "address": "",
+        "balance": "0"
+      },
+      "tokenB": {
+        "symbol": "",
+        "address": "",
+        "balance": "0"
+      },
+      "uniswapV2Router": "",
+      "priceReader": ""
+    }
+]

@@ -12,3 +12,7 @@ docs/
 
 # Dotenv file
 .env
+
+broadcast
+config.json
+_config.json

@@ -5,6 +5,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IUniswapV2Router} from "../interface/IUniswapV2Router.sol";
 import {IPriceReader} from "../interface/IPriceReader.sol";
 import {PriceCalc} from "../lib/PriceCalc.sol";
+import {console} from "forge-std/Script.sol";
 
 
 library InfoTool {
@@ -46,6 +47,29 @@ library InfoTool {
         uint8 decimalsB = _tokenB.decimals();
         return PriceCalc.priceBasedAddedDexReserves(
             reserveA, reserveB, _priceA, _priceB, decimalsA, decimalsB, _maxAddedA, _maxAddedB);
+    }
+
+    function dexRelativeTokenPriceDiff(
+        IUniswapV2Router _uniswapV2Router,
+        IPriceReader _priceReader,
+        IERC20Metadata _tokenA,
+        IERC20Metadata _tokenB,
+        string memory _symbolA,
+        string memory _symbolB
+    )
+        internal view
+        returns (uint256)
+    {
+        (uint256 priceA, uint256 priceB) = conormalizedPrices(_priceReader, _symbolA, _symbolB);
+        (uint256 reserveA, uint256 reserveB) = safelyGetDexReserves(
+           _uniswapV2Router, address(_tokenA), address(_tokenB));
+        uint8 decimalsA = _tokenA.decimals();
+        uint8 decimalsB = _tokenB.decimals();
+        return PriceCalc.dexRelativeTokenPriceDiff(
+            reserveA, reserveB,
+            priceA, priceB,
+            decimalsA, decimalsB
+        );
     }
 
     function conormalizedPrices(

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Babylonian} from "./Babylonian.sol";
+import {console} from "forge-std/Script.sol";
 
 
 library PriceCalc {
@@ -161,6 +162,32 @@ library PriceCalc {
         return (_priceA, _priceB);
     }
 
+    /**
+     * The relative difference of the relative token price between the dex and the given data
+     * shifted by `PRICE_PRECISION_DECIMALS` decimals
+     * @param _reserveA - dex reserve of tokenA
+     * @param _reserveB - dex reserve of tokenB
+     * @param _tokenPriceA - price of tokenA in any currency x
+     * @param _tokenPriceB - price of tokenB in any currency x
+     * @param _decimalsA - decimals of tokenA
+     * @param _decimalsB - decimals of tokenB
+     */
+    function dexRelativeTokenPriceDiff(
+        uint256 _reserveA, uint256 _reserveB,
+        uint256 _tokenPriceA, uint256 _tokenPriceB,
+        uint8 _decimalsA, uint8 _decimalsB
+    )
+        internal pure
+        returns (uint256)
+    {
+        uint256 dexTokenPrice = PriceCalc.relativeTokenDexPrice(_reserveA, _reserveB, _decimalsA, _decimalsB);
+        uint256 expectedTokenPrice = PriceCalc.relativePrice(_tokenPriceA, _tokenPriceB);
+        console.log(dexTokenPrice);
+        console.log(expectedTokenPrice);
+        console.log("-----");
+        return relDiff(dexTokenPrice, expectedTokenPrice);
+    }
+
     function _ratioBasedAddedDexReserves(
         uint256 _initialReserveA,
         uint256 _initialReserveB,
@@ -212,7 +239,20 @@ library PriceCalc {
         uint256 aux3 = Babylonian.sqrt(_initialReserveA * (aux1 + aux2) / _desiredRatioB);
         uint256 aux4 = _initialReserveA * (DEX_FACTOR_BIPS + DEX_MAX_BIPS) / DEX_MAX_BIPS;
         if (aux3 < aux4) return (0, true);
-        return ((aux3 - aux4) * (DEX_MAX_BIPS / 2 * DEX_FACTOR_BIPS), false);
+        return ((aux3 - aux4) * DEX_MAX_BIPS / 2 * DEX_FACTOR_BIPS, false);
+    }
+
+    function relDiff(uint256 x, uint256 y) private pure returns (uint256) {
+        uint256 _max = max(x, y);
+        return _max == 0 ? 0 : PRICE_PRECISION * diff(x, y) / _max;
+    }
+
+    function diff(uint256 x, uint256 y) private pure returns (uint256) {
+        return x > y ? x - y : y - x;
+    }
+
+    function max(uint256 x, uint256 y) private pure returns (uint256) {
+        return x > y ? x : y;
     }
 
 }

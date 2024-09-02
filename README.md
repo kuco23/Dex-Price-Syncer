@@ -1,66 +1,12 @@
-## Foundry
+# Dex Price Syncer
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+This is a [Foundry](https://book.getfoundry.sh/) project for syncing prices on DEXs with some price reader/oracle.
 
-Foundry consists of:
+## Run
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+To run the project:
+- run `forge build --skip test` and `./run/01-deploy.sh`,
+- copy `.env.template` into `.env` and fill with your data,
+- copy `config.template.json` into `config.json` and specify the DEX pairs to sync, along with the price reader/oracle to use,
+- install [jq](https://jqlang.github.io/jq/),
+- run `./run/05-run.sh`.

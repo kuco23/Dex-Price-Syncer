@@ -6,11 +6,28 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IUniswapV2Router} from "./interface/IUniswapV2Router.sol";
 import {IPriceReader} from "./interface/IPriceReader.sol";
 import {InfoTool} from "./lib/InfoTool.sol";
+import {console} from "forge-std/Script.sol";
+
 
 
 contract DexPriceSyncer is Ownable {
 
     constructor() Ownable(msg.sender) {}
+
+    function dexRelativeTokenPriceDiff(
+        IUniswapV2Router _uniswapV2Router,
+        IPriceReader _priceReader,
+        IERC20Metadata _tokenA,
+        IERC20Metadata _tokenB,
+        string memory _symbolA,
+        string memory _symbolB
+    )
+        external view
+        returns (uint256)
+    {
+        return InfoTool.dexRelativeTokenPriceDiff(
+            _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB);
+    }
 
     function sync(
         IUniswapV2Router _uniswapV2Router,
@@ -19,26 +36,21 @@ contract DexPriceSyncer is Ownable {
         IERC20Metadata _tokenB,
         string memory _symbolA,
         string memory _symbolB,
-        uint256 _maxAddedA,
-        uint256 _maxAddedB,
-        uint256 _maxSwapA,
-        uint256 _maxSwapB
+        uint256 _maxSpentA,
+        uint256 _maxSpentB
     )
         external
         onlyOwner
     {
-        { // scope to avoid stack too deep error
-            (uint256 reserveA,) = InfoTool.safelyGetDexReserves(
-                _uniswapV2Router, address(_tokenA), address(_tokenB));
-            if (reserveA == 0) {
-                addLiquidityToSyncDexPrice(
-                    _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxAddedA, _maxAddedB);
-            }
+        _maxSpentA = _capWithBalance(_tokenA, address(this), _maxSpentA);
+        _maxSpentB = _capWithBalance(_tokenB, address(this), _maxSpentB);
+        (uint256 reserveA,) = InfoTool.safelyGetDexReserves(_uniswapV2Router, address(_tokenA), address(_tokenB));
+        if (reserveA == 0) {
+            addLiquidityToSyncDexPrice(
+                _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxSpentA, _maxSpentB);
         }
-        { // scope to avoid stack too deep error
-            swapToSyncDexPrice(
-                _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxSwapA, _maxSwapB);
-        }
+        swapToSyncDexPrice(
+            _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxSpentA, _maxSpentB);
     }
 
     function addLiquidityToSyncDexPrice(
@@ -81,23 +93,23 @@ contract DexPriceSyncer is Ownable {
 
     function withdrawToken(
         IERC20 _token,
-        address _to,
-        uint256 _amount
+        address _to
     )
         external
         onlyOwner
     {
-        _token.transfer(_to, _amount);
+        uint256 amount = _token.balanceOf(address(this));
+        _token.transfer(_to, amount);
     }
 
     function withdrawNative(
-        address _to,
-        uint256 _amount
+        address _to
     )
         external
         onlyOwner
     {
-        (bool success,) = _to.call{value: _amount}("");
+        uint256 amount = address(this).balance;
+        (bool success,) = _to.call{value: amount}("");
         require(success, "DexPriceSyncer: withdrawNative failed");
     }
 
@@ -162,6 +174,28 @@ contract DexPriceSyncer is Ownable {
         arr[0] = _x;
         arr[1] = _y;
         return arr;
+    }
+
+    function _capWithBalance(
+        IERC20 _token,
+        address _owner,
+        uint256 _amount
+    )
+        private view
+        returns (uint256)
+    {
+        uint256 _balance = _token.balanceOf(_owner);
+        return _min(_balance, _amount);
+    }
+
+    function _min(
+        uint256 _x,
+        uint256 _y
+    )
+        private pure
+        returns (uint256)
+    {
+        return _x > _y ? _y : _x;
     }
 
 }

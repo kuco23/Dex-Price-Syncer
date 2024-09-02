@@ -11,9 +11,20 @@ import {DexPriceSyncer} from "../src/DexPriceSyncer.sol";
 import {PriceCalc} from "../src/lib/PriceCalc.sol";
 
 
-uint256 constant MAX_PRICE_BIPS = 1e5;
-uint256 constant ALLOWED_PRICE_DIFF_BIPS = 1;
+/* simple test example
+    uint8 decimalsA = 17;
+    uint8 decimalsB = 6;
+    uint8 priceDecimalsA = 5;
+    uint8 priceDecimalsB = 3;
+    uint256 priceA = 1e7;
+    uint256 priceB = 1e5;
+    uint256 initialLiquidityA = 100_000 * 10 ** decimalsA;
+    uint256 initialLiquidityB = 100_000 * 10 ** decimalsB;
+ */
 
+
+uint256 constant MAX_PRICE_ERROR_HR = 1e5;
+uint256 constant MAX_PRICE_ERROR = PriceCalc.PRICE_PRECISION / MAX_PRICE_ERROR_HR;
 
 contract DexPriceSyncerTest is Test {
     DexPriceSyncer public dexPriceSyncer;
@@ -31,36 +42,20 @@ contract DexPriceSyncerTest is Test {
         uint8 priceDecimalsB,
         uint80 priceA,
         uint80 priceB
-    ) public {
-        vm.assume(decimalsA > 0 && decimalsA <= 20);
-        vm.assume(decimalsB > 0 && decimalsB <= 20);
-        vm.assume(priceDecimalsA > 0 && priceDecimalsA <= 10);
-        vm.assume(priceDecimalsB > 0 && priceDecimalsB <= 10);
-        vm.assume(priceA > 0 && priceB > 0);
-        vm.assume(PriceCalc.relativeUnitPrice(priceA, priceB, decimalsA, decimalsB) > 0);
-        vm.assume(PriceCalc.relativeUnitPrice(priceB, priceA, decimalsB, decimalsA) > 0);
-        vm.assume(PriceCalc.relativePrice(priceA, priceB) > 0);
-        vm.assume(PriceCalc.relativePrice(priceB, priceA) > 0);
-        /* // params
-        uint8 decimalsA = 17;
-        uint8 decimalsB = 6;
-        uint8 priceDecimalsA = 5;
-        uint8 priceDecimalsB = 3;
-        uint256 priceA = 1e7;
-        uint256 priceB = 1e5; */
-        // calc
+    ) external {
+        restrictParams(decimalsA, decimalsB, priceDecimalsA, priceDecimalsB, priceA, priceB);
         uint256 initialSupplyA = type(uint96).max;
         uint256 initialSupplyB = type(uint96).max;
         // test
         ERC20Mock tokenA = new ERC20Mock("TokenA", "TKA", decimalsA);
         ERC20Mock tokenB = new ERC20Mock("TokenB", "TKB", decimalsB);
-        tokenA.mint(address(dexPriceSyncer), initialSupplyA);
-        tokenB.mint(address(dexPriceSyncer), initialSupplyB);
         PriceReaderMock priceReader = new PriceReaderMock(address(this));
         priceReader.setDecimals("TKA_symbol", priceDecimalsA);
         priceReader.setDecimals("TKB_symbol", priceDecimalsB);
         priceReader.setPrice("TKA_symbol", priceA);
         priceReader.setPrice("TKB_symbol", priceB);
+        tokenA.mint(address(dexPriceSyncer), initialSupplyA);
+        tokenB.mint(address(dexPriceSyncer), initialSupplyB);
         dexPriceSyncer.addLiquidityToSyncDexPrice(
             uniswapV2Router,
             priceReader,
@@ -71,26 +66,87 @@ contract DexPriceSyncerTest is Test {
             initialSupplyA,
             initialSupplyB
         );
-        // check
-        (uint256 reserveA, uint256 reserveB) = uniswapV2Router.getReserves(address(tokenA), address(tokenB));
-        uint256 dexPrice = PriceCalc.relativeTokenDexPrice(reserveA, reserveB, decimalsA, decimalsB);
-        (uint256 normalPriceA, uint256 normalPriceB) = PriceCalc.conormalizePrices(
-            priceA, priceB, priceDecimalsA, priceDecimalsB);
-        uint256 expectedPrice = PriceCalc.relativePrice(normalPriceA, normalPriceB);
-        console.log("dexPrice: %d, expectedPrice: %d", dexPrice, expectedPrice);
-        assertLe(relDiffBips(dexPrice, expectedPrice), ALLOWED_PRICE_DIFF_BIPS);
+        // check dex price vs price reader price
+        uint256 relativePriceDiff = dexPriceSyncer.dexRelativeTokenPriceDiff(
+            uniswapV2Router, priceReader, tokenA, tokenB, "TKA_symbol", "TKB_symbol"
+        );
+        assertLe(relativePriceDiff, MAX_PRICE_ERROR);
     }
 
-    function relDiffBips(uint256 x, uint256 y) private pure returns (uint256) {
-        uint256 _max = max(x, y);
-        return _max == 0 ? 0 : MAX_PRICE_BIPS * diff(x, y) / _max;
+    function test_SwapToSyncDexPrice(
+        uint8 decimalsA,
+        uint8 decimalsB,
+        uint8 priceDecimalsA,
+        uint8 priceDecimalsB,
+        uint80 priceA,
+        uint80 priceB,
+        uint96 initialLiquidityA,
+        uint96 initialLiquidityB
+    ) external {
+        restrictParams(decimalsA, decimalsB, priceDecimalsA, priceDecimalsB, priceA, priceB);
+        vm.assume(initialLiquidityA >= 10 ** decimalsA);
+        vm.assume(initialLiquidityB >= 10 ** decimalsB);
+        uint256 initialSupplyA = type(uint96).max;
+        uint256 initialSupplyB = type(uint96).max;
+        // test
+        ERC20Mock tokenA = new ERC20Mock("TokenA", "TKA", decimalsA);
+        ERC20Mock tokenB = new ERC20Mock("TokenB", "TKB", decimalsB);
+        PriceReaderMock priceReader = new PriceReaderMock(address(this));
+        priceReader.setDecimals("TKA_symbol", priceDecimalsA);
+        priceReader.setDecimals("TKB_symbol", priceDecimalsB);
+        priceReader.setPrice("TKA_symbol", priceA);
+        priceReader.setPrice("TKB_symbol", priceB);
+        tokenA.mint(address(this), initialLiquidityA);
+        tokenB.mint(address(this), initialLiquidityB);
+        tokenA.approve(address(uniswapV2Router), initialLiquidityA);
+        tokenB.approve(address(uniswapV2Router), initialLiquidityB);
+        // add initial liquidity
+        uniswapV2Router.addLiquidity(
+            address(tokenA), address(tokenB),
+            initialLiquidityA, initialLiquidityB,
+            0, 0, 0, 0,
+            address(this),
+            block.timestamp
+        );
+        tokenA.mint(address(dexPriceSyncer), initialSupplyA);
+        tokenB.mint(address(dexPriceSyncer), initialSupplyB);
+        dexPriceSyncer.swapToSyncDexPrice(
+            uniswapV2Router,
+            priceReader,
+            tokenA,
+            tokenB,
+            "TKA_symbol",
+            "TKB_symbol",
+            initialSupplyA,
+            initialSupplyB
+        );
+        // check dex price vs price reader price
+        uint256 relativePriceDiff = dexPriceSyncer.dexRelativeTokenPriceDiff(
+            uniswapV2Router, priceReader, tokenA, tokenB, "TKA_symbol", "TKB_symbol"
+        );
+        assertLe(relativePriceDiff, MAX_PRICE_ERROR);
     }
 
-    function diff(uint256 x, uint256 y) private pure returns (uint256) {
-        return x > y ? x - y : y - x;
-    }
-
-    function max(uint256 x, uint256 y) private pure returns (uint256) {
-        return x > y ? x : y;
+    function restrictParams(
+        uint8 decimalsA,
+        uint8 decimalsB,
+        uint8 priceDecimalsA,
+        uint8 priceDecimalsB,
+        uint80 priceA,
+        uint80 priceB
+    ) internal pure {
+        vm.assume(decimalsA > 2 && decimalsA <= 20);
+        vm.assume(decimalsB > 2 && decimalsB <= 20);
+        vm.assume(priceDecimalsA > 2 && priceDecimalsA <= 10);
+        vm.assume(priceDecimalsB > 2 && priceDecimalsB <= 10);
+        vm.assume(priceA > 0 && priceB > 0);
+        uint256 _unitPriceAB = PriceCalc.relativeUnitPrice(priceA, priceB, decimalsA, decimalsB);
+        vm.assume(_unitPriceAB > 0 && _unitPriceAB <= type(uint80).max);
+        uint256 _unitPriceBA = PriceCalc.relativeUnitPrice(priceB, priceA, decimalsB, decimalsA);
+        vm.assume(_unitPriceBA > 0 && _unitPriceBA <= type(uint80).max);
+        uint256 _tokenPriceAB = PriceCalc.relativePrice(priceA, priceB);
+        vm.assume(_tokenPriceAB > 0 && _tokenPriceAB <= type(uint80).max);
+        uint256 _tokenPriceBA = PriceCalc.relativePrice(priceB, priceA);
+        vm.assume(_tokenPriceBA > 0 && _tokenPriceBA <= type(uint80).max);
     }
 }
