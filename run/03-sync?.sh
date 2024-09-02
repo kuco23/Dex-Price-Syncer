@@ -1,6 +1,6 @@
 source $(dirname "$0")/../.env
 
-MAX_PRICE_DIFF=10000000000000 # PRICE_PRECISION / 1e5
+MAX_PRICE_DIFF_BIPS=1
 PRICE_PRECISION_TO_BIPS=10000000000000
 
 uniswapV2Router=$1
@@ -21,10 +21,11 @@ diff=$(
         $uniswapV2Router $priceReader $tokenA $tokenB $symbolA $symbolB --rpc-url $RPC_URL
 )
 
-if [[ $(expr "$diff" '>' $MAX_PRICE_DIFF) ]]; then
-    echo "Syncing pool ($symbolA,$symbolB) with price diff $(formatDiff $diff) BIPS"
+diffBips=$(formatDiff $diff)
+if [ "$diffBips" -gt "$MAX_PRICE_DIFF_BIPS" ]; then
+    echo "Syncing pool ($symbolA,$symbolB) with price diff ${diffBips} BIPS"
     ./run/02-sync.sh $uniswapV2Router $priceReader $tokenA $tokenB $symbolA $symbolB $maxSpentA $maxSpentB
     echo "Ended syncing pool ($symbolA,$symbolB)"
 else
-    echo "Pool ($symbolA,$symbolB) is synced with price diff $(formatDiff $diff) BIPS"
+    echo "Pool ($symbolA,$symbolB) is synced with price diff ${diffBips} BIPS"
 fi

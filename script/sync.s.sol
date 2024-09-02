@@ -25,6 +25,9 @@ contract SyncScript is Script {
         IERC20Metadata tokenB = IERC20Metadata(0xd20D9284E8b43C60365BcA90662C67B5A0B91dd6);
         string memory symbolB = "testUSDC";
         uint256 maxSpentB = 1000000000;
+        // check balance
+        console.log("balanceA", tokenA.balanceOf(address(dexPriceSyncer)));
+        console.log("balanceB", tokenB.balanceOf(address(dexPriceSyncer)));
         // run
         uint256 diff = dexPriceSyncer.dexRelativeTokenPriceDiff(
             uniswapV2Router, priceReader, tokenA, tokenB, symbolA, symbolB
