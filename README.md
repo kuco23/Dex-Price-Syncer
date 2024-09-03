@@ -5,7 +5,7 @@ It was initially used for syncing prices on our testnet to imitate the behavior 
 but can be viewed as an on-chain trading strategy.
 
 > **Note**: The project ommits the MEV protections interfaced by Uniswap as they are not needed.
-> If the an attacker lowers liquidity to produce slippage, the price will be synced accordingly.
+> If an attacker lowers liquidity to produce slippage, the price will be synced accordingly.
 > Similarly if an attacker changes the price, it will be synced back to the correct one.
 > The above assumes that the used price oracle is reliable and cannot be manipulated.
 
