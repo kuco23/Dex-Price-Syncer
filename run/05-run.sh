@@ -1,4 +1,4 @@
 while true; do
-    ./run./syncs.sh
+    ./run/04-syncs.sh
     sleep 60
 done
