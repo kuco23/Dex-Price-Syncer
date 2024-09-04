@@ -1,4 +1,4 @@
 while true; do
-    bash run/04-syncs.sh
+    source $(dirname "$0")/04-syncs.sh
     sleep 60
 done

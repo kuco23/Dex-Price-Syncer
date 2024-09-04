@@ -24,7 +24,7 @@ diff=$(
 diffBips=$(formatDiff $diff)
 if [ "$diffBips" -gt "$MAX_PRICE_DIFF_BIPS" ]; then
     echo "Syncing pool ($symbolA,$symbolB) with price diff ${diffBips} BIPS"
-    bash run/02-sync.sh $uniswapV2Router $priceReader $tokenA $tokenB $symbolA $symbolB $maxSpentA $maxSpentB
+    source $(dirname "$0")/02-sync.sh $uniswapV2Router $priceReader $tokenA $tokenB $symbolA $symbolB $maxSpentA $maxSpentB
     echo "Ended syncing pool ($symbolA,$symbolB)"
 else
     echo "Pool ($symbolA,$symbolB) is synced with price diff ${diffBips} BIPS"

@@ -15,5 +15,5 @@ for pool in $(cat $CONFIG_FILE_PATH | jq -r '.[] | @base64'); do
     maxSpentB=$(_jq '.tokenB.balance')
 
     echo "Testing sync condition on ($symbolA, $symbolB) pool"
-    bash run/03-sync?.sh $uniswapV2Router $priceReader $tokenA $tokenB $symbolA $symbolB $maxSpentA $maxSpentB
+    source $(dirname "$0")/03-sync?.sh $uniswapV2Router $priceReader $tokenA $tokenB $symbolA $symbolB $maxSpentA $maxSpentB
 done
