@@ -19,4 +19,4 @@ To run the project:
 - copy `.env.template` into `.env` and fill-in your data,
 - to deploy the contract, use `./run/01-deploy.sh`,
 - copy `config.template.json` into `config.json` and specify the DEX pools to sync, along with the price reader/oracle to use,
-- run `./run/05-run.sh`.
+- run `bash ./run/05-run.sh`.
