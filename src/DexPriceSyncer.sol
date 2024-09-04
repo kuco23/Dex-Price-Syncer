@@ -46,9 +46,10 @@ contract DexPriceSyncer is Ownable {
         if (reserveA == 0) {
             addLiquidityToSyncDexPrice(
                 _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxSpentA, _maxSpentB);
+        } else {
+            swapToSyncDexPrice(
+                _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxSpentA, _maxSpentB);
         }
-        swapToSyncDexPrice(
-            _uniswapV2Router, _priceReader, _tokenA, _tokenB, _symbolA, _symbolB, _maxSpentA, _maxSpentB);
     }
 
     function addLiquidityToSyncDexPrice(

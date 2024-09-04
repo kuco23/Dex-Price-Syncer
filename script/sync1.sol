@@ -8,7 +8,7 @@ import {IUniswapV2Router} from "../src/interface/IUniswapV2Router.sol";
 import {IPriceReader} from "../src/interface/IPriceReader.sol";
 
 
-contract SyncScript is Script {
+contract Sync1 is Script {
     function setUp() public {}
 
     function run() public {

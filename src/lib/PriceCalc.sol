@@ -28,7 +28,7 @@ library PriceCalc {
      * @return _optimalAddedA - optimal amount of tokenA to add to the dex
      * @return _optimalAddedB - optimal amount of tokenB to add to the dex
      */
-    function priceBasedAddedDexReserves(
+    function addLiquidityForDexPrice(
         uint256 _initialReserveA,
         uint256 _initialReserveB,
         uint256 _priceA,
@@ -54,7 +54,7 @@ library PriceCalc {
      * @param _decimalsA - decimals of tokenA
      * @param _decimalsB - decimals of tokenB
      */
-    function swapToDexPrice(
+    function swapForDexPrice(
         uint256 _initialReserveA,
         uint256 _initialReserveB,
         uint256 _priceA,
@@ -66,7 +66,7 @@ library PriceCalc {
         returns (uint256 _swapA, uint256 _swapB)
     {
         (uint256 ratioB, uint256 ratioA) = relativeUnitPriceMulDiv(_priceA, _priceB, _decimalsA, _decimalsB);
-        return _swapToDexPrice(_initialReserveA, _initialReserveB, ratioA, ratioB);
+        return _swapForDexPrice(_initialReserveA, _initialReserveB, ratioA, ratioB);
     }
 
     /**
@@ -208,7 +208,7 @@ library PriceCalc {
         return (optimalAddedA, optimalAddedB);
     }
 
-    function _swapToDexPrice(
+    function _swapForDexPrice(
         uint256 _initialReserveA,
         uint256 _initialReserveB,
         uint256 _ratioA,
@@ -232,7 +232,7 @@ library PriceCalc {
         returns (uint256 _swapA, bool _negative)
     {
         uint256 aux1 = 4 * _initialReserveB * _desiredRatioA * DEX_FACTOR_BIPS / DEX_MAX_BIPS;
-        uint256 aux2 = _initialReserveA * _desiredRatioB * DEX_FEE_BIPS ** 2 / DEX_MAX_BIPS ** 2;
+        uint256 aux2 = _initialReserveA * _desiredRatioB * DEX_FEE_BIPS * DEX_FEE_BIPS / DEX_MAX_BIPS / DEX_MAX_BIPS;
         uint256 aux3 = Babylonian.sqrt((aux1 + aux2) / _desiredRatioB * _initialReserveA); // watch out for overflow
         uint256 aux4 = _initialReserveA * (DEX_FACTOR_BIPS + DEX_MAX_BIPS) / DEX_MAX_BIPS;
         if (aux3 < aux4) return (0, true);

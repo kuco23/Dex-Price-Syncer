@@ -10,27 +10,6 @@ import {IPriceReader} from "../interface/IPriceReader.sol";
 
 library InfoTool {
 
-    function tokensToSwapForDexPriceSync(
-        IUniswapV2Router _uniswapV2Router,
-        IERC20Metadata _tokenA,
-        IERC20Metadata _tokenB,
-        uint256 _priceA,
-        uint256 _priceB,
-        uint256 _maxSwapA,
-        uint256 _maxSwapB
-    )
-        internal view
-        returns (uint256 _swapA, uint256 _swapB)
-    {
-        (uint256 reserveA, uint256 reserveB) = _uniswapV2Router.getReserves(
-            address(_tokenA), address(_tokenB));
-        uint8 decimalsA = _tokenA.decimals();
-        uint8 decimalsB = _tokenB.decimals();
-        (uint256 swapA, uint256 swapB) = PriceCalc.swapToDexPrice(
-            reserveA, reserveB, _priceA, _priceB, decimalsA, decimalsB);
-        return (Math.min(swapA, _maxSwapA), Math.min(swapB, _maxSwapB));
-    }
-
     function liquidityToAddForDexPriceSync(
         IUniswapV2Router _uniswapV2Router,
         IERC20Metadata _tokenA,
@@ -47,9 +26,30 @@ library InfoTool {
             _uniswapV2Router, address(_tokenA), address(_tokenB));
         uint8 decimalsA = _tokenA.decimals();
         uint8 decimalsB = _tokenB.decimals();
-        return PriceCalc.priceBasedAddedDexReserves(
+        return PriceCalc.addLiquidityForDexPrice(
             reserveA, reserveB, _priceA, _priceB,
             decimalsA, decimalsB, _maxAddedA, _maxAddedB);
+    }
+
+    function tokensToSwapForDexPriceSync(
+        IUniswapV2Router _uniswapV2Router,
+        IERC20Metadata _tokenA,
+        IERC20Metadata _tokenB,
+        uint256 _priceA,
+        uint256 _priceB,
+        uint256 _maxSwapA,
+        uint256 _maxSwapB
+    )
+        internal view
+        returns (uint256 _swapA, uint256 _swapB)
+    {
+        (uint256 reserveA, uint256 reserveB) = _uniswapV2Router.getReserves(
+            address(_tokenA), address(_tokenB));
+        uint8 decimalsA = _tokenA.decimals();
+        uint8 decimalsB = _tokenB.decimals();
+        (uint256 swapA, uint256 swapB) = PriceCalc.swapForDexPrice(
+            reserveA, reserveB, _priceA, _priceB, decimalsA, decimalsB);
+        return (Math.min(swapA, _maxSwapA), Math.min(swapB, _maxSwapB));
     }
 
     function dexRelativeTokenPriceDiff(

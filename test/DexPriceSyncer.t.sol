@@ -23,7 +23,7 @@ import {DexPriceSyncer} from "../src/DexPriceSyncer.sol";
     uint256 initialLiquidityB = 100_000 * 10 ** decimalsB;
  */
 
-uint256 constant MAX_PRICE_DECIMAL_DIFF = 2; // can be set to 5 for add liquidity,
+uint256 constant MAX_PRICE_DECIMAL_DIFF = 3; // can be set to 5 for add liquidity,
 // for swap it's hard to eliminate the problematic values
 uint256 constant MAX_PRICE_ERROR = PriceCalc.PRICE_PRECISION / 10 ** MAX_PRICE_DECIMAL_DIFF;
 
@@ -65,6 +65,8 @@ contract DexPriceSyncerTest is Test {
             initialSupplyA,
             initialSupplyB
         );
+        (uint256 reserveA, uint256 reserveB) = uniswapV2Router.getReserves(address(tokenA), address(tokenB));
+        assertTrue(reserveA == initialSupplyA || reserveB == initialSupplyB);
         // check dex price vs price reader price
         uint256 relativePriceDiff = dexPriceSyncer.dexRelativeTokenPriceDiff(
             uniswapV2Router, priceReader, tokenA, tokenB, "TKA_symbol", "TKB_symbol"
