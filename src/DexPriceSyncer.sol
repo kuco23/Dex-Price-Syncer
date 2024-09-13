@@ -90,11 +90,34 @@ contract DexPriceSyncer is Ownable {
         _swap(_uniswapV2Router, IERC20(_tokenA), IERC20(_tokenB), swapA, swapB);
     }
 
+    function withdrawPool(
+        IUniswapV2Router _uniswapV2Router,
+        IERC20 _tokenA,
+        IERC20 _tokenB,
+        address _to
+    )
+        external
+        onlyOwner
+    {
+        IERC20 pool = IERC20(_uniswapV2Router.pairFor(address(_tokenA), address(_tokenB)));
+        uint256 liquidity = pool.balanceOf(address(this));
+        _uniswapV2Router.removeLiquidity(
+            address(_tokenA),
+            address(_tokenB),
+            liquidity,
+            0, 0,
+            address(this),
+            block.timestamp
+        );
+        withdrawToken(_tokenA, _to);
+        withdrawToken(_tokenB, _to);
+    }
+
     function withdrawToken(
         IERC20 _token,
         address _to
     )
-        external
+        public
         onlyOwner
     {
         uint256 amount = _token.balanceOf(address(this));

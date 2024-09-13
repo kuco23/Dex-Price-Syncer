@@ -9,6 +9,7 @@ library PriceCalc {
 
     uint256 constant PRICE_PRECISION_DECIMALS = 18;
     uint256 constant PRICE_PRECISION = 10 ** PRICE_PRECISION_DECIMALS;
+    uint256 constant MAX_PRICE = 1e10 * PRICE_PRECISION;
 
     // uniswap-v2 constants
     uint256 constant DEX_FEE_BIPS = 3;
@@ -137,7 +138,7 @@ library PriceCalc {
         internal pure
         returns (uint256)
     {
-        return PRICE_PRECISION * _priceA / _priceB;
+        return _priceB > 0 ? PRICE_PRECISION * _priceA / _priceB : MAX_PRICE;
     }
 
     /**
